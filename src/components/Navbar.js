@@ -44,38 +44,28 @@ function Navbar() {
     <AppBar
       position="fixed"
       sx={{
-        bgcolor: 'white',
-        boxShadow: '0 2px 12px 0 rgba(0,0,0,0.1)',
+        backgroundColor: 'white',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
       }}
     >
-      <Container maxWidth="lg">
-        <Toolbar
-          sx={{
-            justifyContent: 'space-between',
-            minHeight: { xs: '64px', sm: '72px' },
-          }}
-        >
+      <Container maxWidth="md">
+        <Toolbar disableGutters>
           <Typography
-            variant="h5"
+            variant="h6"
             component={RouterLink}
             to="/"
             sx={{
-              fontWeight: 'bold',
+              flexGrow: 1,
+              textDecoration: 'none',
               color: 'primary.main',
-              fontFamily: 'monospace',
-              letterSpacing: '.2rem',
-              cursor: 'pointer',
-              fontSize: { xs: '1.5rem', sm: '1.8rem' },
-              '&:hover': {
-                color: 'primary.dark',
-              },
+              fontWeight: 700,
             }}
           >
             KHinsta
           </Typography>
 
           <SignedIn>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Button
                 component={RouterLink}
                 to="/"

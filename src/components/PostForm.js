@@ -3,7 +3,8 @@ import { useUser } from '@clerk/clerk-react';
 import { 
   TextField, 
   Button, 
-  Paper, 
+  Card, 
+  CardContent, 
   Box, 
   IconButton, 
   CircularProgress,
@@ -80,27 +81,47 @@ function PostForm({ onAddPost }) {
         imageUrl = await uploadImage(selectedImage);
       }
 
-      const newPost = {
-        content: content,
+      // Create the post object
+      const post = {
+        content: content.trim(),
         image_url: imageUrl,
         author: {
-          id: user.id,
           name: user.firstName || user.username,
           surname: user.lastName || '',
-          avatar: user.imageUrl,
-          email: user.emailAddresses[0].emailAddress
+          avatar: user.imageUrl
         },
         created_at: new Date().toISOString()
       };
 
+      console.log('User data:', {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        imageUrl: user.imageUrl,
+        email: user.emailAddresses[0].emailAddress
+      });
+      console.log('Creating post:', post);
+
+      // Insert into Supabase
       const { data, error } = await supabase
         .from('posts')
-        .insert([newPost])
+        .insert([post])
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating post:', error);
+        throw new Error(error.message);
+      }
 
+      if (!data || data.length === 0) {
+        throw new Error('No data returned after creating post');
+      }
+
+      console.log('Post created successfully:', data[0]);
       onAddPost(data[0]);
+      
+      // Reset form
       setContent('');
       setSelectedImage(null);
       setImagePreview(null);
@@ -108,135 +129,130 @@ function PostForm({ onAddPost }) {
         fileInputRef.current.value = '';
       }
     } catch (error) {
-      console.error('Error creating post:', error);
-      setError('Failed to create post. Please try again.');
+      console.error('Error in handleSubmit:', error);
+      setError(error.message || 'Failed to create post');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Paper 
+    <Card 
       sx={{ 
-        p: 3, 
-        mb: 3, 
-        bgcolor: 'background.paper',
+        mb: 4,
         borderRadius: 3,
         boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-        transition: 'transform 0.2s',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-        }
       }}
     >
-      <form onSubmit={handleSubmit}>
-        <TextField
-          fullWidth
-          multiline
-          rows={3}
-          variant="outlined"
-          placeholder="What's on your mind?"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          sx={{ 
-            mb: 2,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 2,
-              '&:hover fieldset': {
-                borderColor: 'primary.main',
-              },
-            }
-          }}
-          disabled={isLoading}
-        />
-        
-        {imagePreview && (
-          <Box sx={{ position: 'relative', mb: 2 }}>
-            <img 
-              src={imagePreview} 
-              alt="Preview" 
-              style={{ 
-                maxWidth: '100%', 
-                maxHeight: '300px', 
-                objectFit: 'cover',
-                borderRadius: '8px'
-              }} 
-            />
-            <IconButton
-              onClick={handleRemoveImage}
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <form onSubmit={handleSubmit}>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            variant="outlined"
+            placeholder="What's on your mind?"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            sx={{ 
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                '&:hover fieldset': {
+                  borderColor: 'primary.main',
+                },
+              }
+            }}
+            disabled={isLoading}
+          />
+          
+          {imagePreview && (
+            <Box sx={{ position: 'relative', mb: 2 }}>
+              <img 
+                src={imagePreview} 
+                alt="Preview" 
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '300px', 
+                  objectFit: 'cover',
+                  borderRadius: '8px'
+                }} 
+              />
+              <IconButton
+                onClick={handleRemoveImage}
+                disabled={isLoading}
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  bgcolor: 'rgba(0,0,0,0.6)',
+                  color: 'white',
+                  '&:hover': {
+                    bgcolor: 'rgba(0,0,0,0.8)'
+                  }
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
+          )}
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleImageSelect}
+              ref={fileInputRef}
               disabled={isLoading}
-              sx={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                bgcolor: 'rgba(0,0,0,0.6)',
-                color: 'white',
-                '&:hover': {
-                  bgcolor: 'rgba(0,0,0,0.8)'
+            />
+            <Button 
+              onClick={() => fileInputRef.current.click()}
+              variant="outlined"
+              disabled={isLoading}
+              startIcon={<AddPhotoAlternateIcon />}
+              sx={{ 
+                borderStyle: 'dashed',
+                '&:hover': { 
+                  borderStyle: 'dashed',
+                  bgcolor: 'primary.50' 
                 }
               }}
             >
-              <CloseIcon />
-            </IconButton>
+              Add Photo
+            </Button>
+            <Button 
+              type="submit" 
+              variant="contained" 
+              color="primary"
+              disabled={(!content.trim() && !selectedImage) || isLoading}
+              sx={{ 
+                px: 4,
+                '&:hover': { 
+                  bgcolor: 'primary.dark',
+                  transform: 'translateY(-1px)'
+                }
+              }}
+            >
+              {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Post'}
+            </Button>
           </Box>
-        )}
-
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <input
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handleImageSelect}
-            ref={fileInputRef}
-            disabled={isLoading}
-          />
-          <Button 
-            onClick={() => fileInputRef.current.click()}
-            variant="outlined"
-            disabled={isLoading}
-            startIcon={<AddPhotoAlternateIcon />}
-            sx={{ 
-              borderStyle: 'dashed',
-              '&:hover': { 
-                borderStyle: 'dashed',
-                bgcolor: 'primary.50' 
-              }
-            }}
-          >
-            Add Photo
-          </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
-            color="primary"
-            disabled={(!content.trim() && !selectedImage) || isLoading}
-            sx={{ 
-              px: 4,
-              '&:hover': { 
-                bgcolor: 'primary.dark',
-                transform: 'translateY(-1px)'
-              }
-            }}
-          >
-            {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Post'}
-          </Button>
-        </Box>
-      </form>
-      <Snackbar 
-        open={!!error} 
-        autoHideDuration={6000} 
-        onClose={() => setError(null)}
-      >
-        <Alert 
-          severity="error" 
+        </form>
+        <Snackbar 
+          open={!!error} 
+          autoHideDuration={6000} 
           onClose={() => setError(null)}
-          sx={{ width: '100%' }}
         >
-          {error}
-        </Alert>
-      </Snackbar>
-    </Paper>
+          <Alert 
+            severity="error" 
+            onClose={() => setError(null)}
+            sx={{ width: '100%' }}
+          >
+            {error}
+          </Alert>
+        </Snackbar>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -1,263 +1,177 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { 
+  ClerkProvider, 
+  SignedIn, 
+  SignedOut, 
+  RedirectToSignIn 
+} from '@clerk/clerk-react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { observer } from 'mobx-react-lite';
-import { Box, Container, Grid, Card, Typography, Avatar, CircularProgress, Alert } from '@mui/material';
+import CssBaseline from '@mui/material/CssBaseline';
+import { Container, Box, CircularProgress, Alert, Typography } from '@mui/material';
+import { supabase } from './supabaseClient';
 import Navbar from './components/Navbar';
+import Profile from './components/Profile/Profile';
+import SignIn from './components/Auth/SignIn';
+import SignUp from './components/Auth/SignUp';
 import PostForm from './components/PostForm';
 import Post from './components/Post';
-import SignInPage from './components/Auth/SignIn';
-import SignUpPage from './components/Auth/SignUp';
-import Profile from './components/Profile/Profile';
-import { useUser } from '@clerk/clerk-react';
-import { supabase } from './supabaseClient';
+
+if (!process.env.REACT_APP_CLERK_PUBLISHABLE_KEY) {
+  throw new Error('Missing Clerk publishable key');
+}
+
+const clerkPubKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
 
 const theme = createTheme({
   palette: {
+    mode: 'light',
     primary: {
       main: '#1976d2',
-      light: '#42a5f5',
-      dark: '#1565c0',
-    },
-    secondary: {
-      main: '#2196f3',
-      light: '#64b5f6',
-      dark: '#1976d2',
-    },
-    background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
-    },
-  },
-  typography: {
-    fontFamily: [
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 8,
-          textTransform: 'none',
-          fontWeight: 600,
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          boxShadow: '0 2px 12px 0 rgba(0,0,0,0.1)',
-        },
-      },
     },
   },
 });
 
-const clerkPubKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
-console.log('Clerk Key:', clerkPubKey);
-
-const HomePage = observer(() => {
-  const { user } = useUser();
+function App() {
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
   const fetchPosts = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
+
+      console.log('Fetching posts...');
       const { data, error } = await supabase
         .from('posts')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Fetch error:', error);
+        throw error;
+      }
 
-      // Ensure posts have all required fields
-      const validPosts = (data || []).filter(post => 
-        post && 
-        post.content && 
-        post.author && 
-        post.author.name
-      );
+      console.log('Raw posts data:', data);
 
-      setPosts(validPosts);
+      if (!data) {
+        console.log('No data returned from Supabase');
+        setPosts([]);
+        return;
+      }
+
+      setPosts(data);
     } catch (err) {
       console.error('Error fetching posts:', err);
-      setError('Failed to load posts. Please try again.');
+      setError('Failed to load posts: ' + err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
   const handleAddPost = async (newPost) => {
-    if (!newPost || !newPost.content || !newPost.author) return;
-    setPosts([newPost, ...posts]);
+    console.log('Adding new post:', newPost);
+    setPosts(prevPosts => [newPost, ...prevPosts]);
+    // Refresh posts to ensure we have the latest data
+    fetchPosts();
   };
 
-  return (
-    <>
-      <Navbar />
-      <Box 
-        sx={{ 
-          bgcolor: 'background.default', 
-          minHeight: '100vh',
-          pt: { xs: 10, sm: 12 }, 
-          pb: 4,
-          px: { xs: 2, sm: 3 }
-        }}
-      >
-        <Container maxWidth="md">
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Card 
-                sx={{ 
-                  mb: 4, 
-                  bgcolor: 'primary.main', 
-                  color: 'white', 
-                  p: { xs: 2, sm: 3 },
-                  transition: 'transform 0.2s',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                  }
-                }}
-              >
-                <Grid container alignItems="center" spacing={2}>
-                  <Grid item>
-                    <Avatar
-                      src={user?.imageUrl}
-                      sx={{ 
-                        width: { xs: 60, sm: 80 }, 
-                        height: { xs: 60, sm: 80 },
-                        border: '3px solid white'
-                      }}
-                    >
-                      {user?.firstName?.[0] || user?.username?.[0]}
-                    </Avatar>
-                  </Grid>
-                  <Grid item>
-                    <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                      {user?.firstName ? `${user.firstName} ${user.lastName || ''}` : user?.username}
-                    </Typography>
-                    <Typography 
-                      variant="subtitle1" 
-                      sx={{ 
-                        opacity: 0.9,
-                        mt: 0.5
-                      }}
-                    >
-                      Welcome back!
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Card>
-            </Grid>
-            <Grid item xs={12}>
-              <PostForm onAddPost={handleAddPost} />
-            </Grid>
-            <Grid item xs={12}>
-              {isLoading ? (
-                <Box display="flex" justifyContent="center" p={3}>
-                  <CircularProgress />
-                </Box>
-              ) : error ? (
-                <Alert 
-                  severity="error"
-                  sx={{ 
-                    borderRadius: 2,
-                    '& .MuiAlert-message': { 
-                      fontSize: '1rem' 
-                    }
-                  }}
-                >
-                  {error}
-                </Alert>
-              ) : posts.length === 0 ? (
-                <Box 
-                  sx={{ 
-                    textAlign: 'center', 
-                    py: 4,
-                    color: 'text.secondary'
-                  }}
-                >
-                  <Typography variant="h6">
-                    No posts yet. Be the first to share something!
-                  </Typography>
-                </Box>
-              ) : (
-                posts.map((post) => (
-                  <Post key={post.id} post={post} />
-                ))
-              )}
-            </Grid>
-          </Grid>
-        </Container>
-      </Box>
-    </>
-  );
-});
+  const renderPosts = () => {
+    if (isLoading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      );
+    }
 
-function App() {
-  if (!clerkPubKey) {
-    console.log('Environment variables:', process.env);
-    return 'Missing Publishable Key';
-  }
+    if (error) {
+      return (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      );
+    }
+
+    if (!posts || posts.length === 0) {
+      return (
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Typography variant="h6" color="text.secondary">
+            No posts yet. Be the first to share something!
+          </Typography>
+        </Box>
+      );
+    }
+
+    return posts.map(post => {
+      console.log('Rendering post:', post);
+      return <Post key={post.id} post={post} />;
+    });
+  };
 
   return (
     <ClerkProvider publishableKey={clerkPubKey}>
       <ThemeProvider theme={theme}>
+        <CssBaseline />
         <Router>
-          <Routes>
-            <Route
-              path="/sign-in/*"
-              element={<SignInPage />}
-            />
-            <Route
-              path="/sign-up/*"
-              element={<SignUpPage />}
-            />
-            <Route
-              path="/"
-              element={
-                <>
-                  <SignedIn>
-                    <HomePage />
-                  </SignedIn>
-                  <SignedOut>
-                    <RedirectToSignIn />
-                  </SignedOut>
-                </>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <>
-                  <SignedIn>
-                    <Profile />
-                  </SignedIn>
-                  <SignedOut>
-                    <RedirectToSignIn />
-                  </SignedOut>
-                </>
-              }
-            />
-          </Routes>
+          <Box sx={{ minHeight: '100vh', bgcolor: 'grey.100' }}>
+            <Navbar />
+            <Container 
+              maxWidth="md" 
+              sx={{ 
+                pt: { xs: 10, sm: 11 }, // Increased top padding to account for fixed navbar
+                pb: 4,
+                px: { xs: 2, sm: 3 } 
+              }}
+            >
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <>
+                      <SignedIn>
+                        <PostForm onAddPost={handleAddPost} />
+                        {renderPosts()}
+                      </SignedIn>
+                      <SignedOut>
+                        <RedirectToSignIn />
+                      </SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/sign-in/*"
+                  element={<SignIn routing="path" path="/sign-in" />}
+                />
+                <Route
+                  path="/sign-up/*"
+                  element={<SignUp routing="path" path="/sign-up" />}
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <>
+                      <SignedIn>
+                        <Profile />
+                      </SignedIn>
+                      <SignedOut>
+                        <RedirectToSignIn />
+                      </SignedOut>
+                    </>
+                  }
+                />
+              </Routes>
+            </Container>
+          </Box>
         </Router>
       </ThemeProvider>
     </ClerkProvider>
   );
 }
 
-export default observer(App);
+export default App;

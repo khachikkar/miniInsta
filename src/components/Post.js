@@ -11,14 +11,23 @@ import {
 import formatDistanceToNow from 'date-fns/formatDistanceToNow';
 
 function Post({ post }) {
-  if (!post) return null;
+  if (!post) {
+    console.log('No post data provided');
+    return null;
+  }
+
+  const author = post.author || {};
+  
+  console.log('Rendering post:', {
+    id: post.id,
+    content: post.content,
+    author: post.author,
+    created_at: post.created_at
+  });
 
   const formattedDate = post.created_at 
     ? formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
     : '';
-
-  const author = post.author || {};
-  const { name = '', surname = '', avatar = '' } = author;
 
   return (
     <Card 
@@ -36,7 +45,7 @@ function Post({ post }) {
       <CardHeader
         avatar={
           <Avatar
-            src={avatar}
+            src={author.avatar}
             sx={{ 
               width: { xs: 40, sm: 50 }, 
               height: { xs: 40, sm: 50 },
@@ -44,12 +53,12 @@ function Post({ post }) {
               borderColor: 'primary.main'
             }}
           >
-            {name ? name[0] : '?'}
+            {author.name ? author.name[0] : '?'}
           </Avatar>
         }
         title={
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            {name} {surname}
+            {author.name} {author.surname}
           </Typography>
         }
         subheader={
