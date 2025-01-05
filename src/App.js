@@ -9,6 +9,7 @@ import PostForm from './components/PostForm';
 import Post from './components/Post';
 import SignInPage from './components/Auth/SignIn';
 import SignUpPage from './components/Auth/SignUp';
+import Profile from './components/Profile/Profile';
 import { useUser } from '@clerk/clerk-react';
 import { supabase } from './supabaseClient';
 
@@ -83,7 +84,15 @@ const HomePage = observer(() => {
 
       if (error) throw error;
 
-      setPosts(data || []);
+      // Ensure posts have all required fields
+      const validPosts = (data || []).filter(post => 
+        post && 
+        post.content && 
+        post.author && 
+        post.author.name
+      );
+
+      setPosts(validPosts);
     } catch (err) {
       console.error('Error fetching posts:', err);
       setError('Failed to load posts. Please try again.');
@@ -93,6 +102,7 @@ const HomePage = observer(() => {
   };
 
   const handleAddPost = async (newPost) => {
+    if (!newPost || !newPost.content || !newPost.author) return;
     setPosts([newPost, ...posts]);
   };
 
@@ -210,6 +220,14 @@ function App() {
         <Router>
           <Routes>
             <Route
+              path="/sign-in/*"
+              element={<SignInPage />}
+            />
+            <Route
+              path="/sign-up/*"
+              element={<SignUpPage />}
+            />
+            <Route
               path="/"
               element={
                 <>
@@ -222,13 +240,18 @@ function App() {
                 </>
               }
             />
-            <Route 
-              path="/sign-in/*" 
-              element={<SignInPage />} 
-            />
-            <Route 
-              path="/sign-up/*" 
-              element={<SignUpPage />} 
+            <Route
+              path="/profile"
+              element={
+                <>
+                  <SignedIn>
+                    <Profile />
+                  </SignedIn>
+                  <SignedOut>
+                    <RedirectToSignIn />
+                  </SignedOut>
+                </>
+              }
             />
           </Routes>
         </Router>

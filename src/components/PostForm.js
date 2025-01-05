@@ -84,10 +84,13 @@ function PostForm({ onAddPost }) {
         content: content,
         image_url: imageUrl,
         author: {
+          id: user.id,
           name: user.firstName || user.username,
           surname: user.lastName || '',
           avatar: user.imageUrl,
+          email: user.emailAddresses[0].emailAddress
         },
+        created_at: new Date().toISOString()
       };
 
       const { data, error } = await supabase

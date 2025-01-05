@@ -11,7 +11,14 @@ import {
 import formatDistanceToNow from 'date-fns/formatDistanceToNow';
 
 function Post({ post }) {
-  const formattedDate = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
+  if (!post) return null;
+
+  const formattedDate = post.created_at 
+    ? formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
+    : '';
+
+  const author = post.author || {};
+  const { name = '', surname = '', avatar = '' } = author;
 
   return (
     <Card 
@@ -29,7 +36,7 @@ function Post({ post }) {
       <CardHeader
         avatar={
           <Avatar
-            src={post.author.avatar}
+            src={avatar}
             sx={{ 
               width: { xs: 40, sm: 50 }, 
               height: { xs: 40, sm: 50 },
@@ -37,18 +44,20 @@ function Post({ post }) {
               borderColor: 'primary.main'
             }}
           >
-            {post.author.name[0]}
+            {name ? name[0] : '?'}
           </Avatar>
         }
         title={
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            {`${post.author.name} ${post.author.surname || ''}`}
+            {name} {surname}
           </Typography>
         }
         subheader={
-          <Typography variant="body2" color="text.secondary">
-            {formattedDate}
-          </Typography>
+          formattedDate && (
+            <Typography variant="body2" color="text.secondary">
+              {formattedDate}
+            </Typography>
+          )
         }
         sx={{ 
           bgcolor: 'primary.light',
@@ -78,7 +87,7 @@ function Post({ post }) {
             lineHeight: 1.6 
           }}
         >
-          {post.content}
+          {post.content || ''}
         </Typography>
       </CardContent>
     </Card>
