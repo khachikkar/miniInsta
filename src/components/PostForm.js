@@ -90,6 +90,8 @@ function PostForm({ onAddPost }) {
           surname: user.lastName || '',
           avatar: user.imageUrl
         },
+        likes: 0,
+        liked_by: [],
         created_at: new Date().toISOString()
       };
 

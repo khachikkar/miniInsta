@@ -42,29 +42,28 @@ function App() {
       setIsLoading(true);
       setError(null);
 
-      console.log('Fetching posts...');
       const { data, error } = await supabase
         .from('posts')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Fetch error:', error);
+        console.error('Error fetching posts:', error);
         throw error;
       }
 
-      console.log('Raw posts data:', data);
+      console.log('Fetched posts:', data);
 
-      if (!data) {
-        console.log('No data returned from Supabase');
-        setPosts([]);
-        return;
-      }
+      // Make sure likes is initialized for all posts
+      const postsWithLikes = data?.map(post => ({
+        ...post,
+        likes: typeof post.likes === 'number' ? post.likes : 0
+      })) || [];
 
-      setPosts(data);
+      setPosts(postsWithLikes);
     } catch (err) {
-      console.error('Error fetching posts:', err);
-      setError('Failed to load posts: ' + err.message);
+      console.error('Error:', err);
+      setError('Failed to load posts');
     } finally {
       setIsLoading(false);
     }
@@ -75,10 +74,23 @@ function App() {
   }, []);
 
   const handleAddPost = async (newPost) => {
-    console.log('Adding new post:', newPost);
-    setPosts(prevPosts => [newPost, ...prevPosts]);
+    setPosts(prevPosts => [
+      {
+        ...newPost,
+        likes: 0
+      },
+      ...prevPosts
+    ]);
     // Refresh posts to ensure we have the latest data
     fetchPosts();
+  };
+
+  const handleUpdatePost = (updatedPost) => {
+    setPosts(currentPosts => 
+      currentPosts.map(post => 
+        post.id === updatedPost.id ? updatedPost : post
+      )
+    );
   };
 
   const renderPosts = () => {
@@ -108,10 +120,13 @@ function App() {
       );
     }
 
-    return posts.map(post => {
-      console.log('Rendering post:', post);
-      return <Post key={post.id} post={post} />;
-    });
+    return posts.map(post => (
+      <Post 
+        key={post.id} 
+        post={post} 
+        onUpdatePost={handleUpdatePost}
+      />
+    ));
   };
 
   return (

@@ -1,30 +1,57 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Card, 
   CardContent, 
   CardHeader, 
   CardMedia, 
+  CardActions,
   Avatar, 
   Typography,
-  Box,
+  IconButton,
 } from '@mui/material';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import formatDistanceToNow from 'date-fns/formatDistanceToNow';
+import { useUser } from '@clerk/clerk-react';
+import { supabase } from '../supabaseClient';
 
 function Post({ post }) {
-  if (!post) {
-    console.log('No post data provided');
-    return null;
-  }
+  const { user } = useUser();
+  const [likeCount, setLikeCount] = useState(post.likes || 0);
+  const [likedPosts, setLikedPosts] = useState([]);
+
+  const handleLike = async () => {
+    if (!user) return;
+    if (likedPosts.includes(post.id)) {
+      console.log('You have already liked this post.');
+      return; // Prevent liking again
+    }
+
+    const newLikeCount = likeCount + 1;
+    setLikeCount(newLikeCount); // Optimistic update
+
+    console.log(post.id);
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({ likes: newLikeCount })
+        .eq('id', post.id);
+
+      if (error) {
+        console.error('Error updating likes:', error.message); // More detailed error
+        // Optionally revert the optimistic update if there's an error
+        setLikeCount(likeCount); // Revert if needed
+        return;
+      }
+      // Update the likedPosts state
+      setLikedPosts([...likedPosts, post.id]); // Add the post ID to the likedPosts array
+    } catch (error) {
+      console.error('Error:', error.message); // More detailed error
+      setLikeCount(likeCount); // Revert if needed
+    }
+  };
 
   const author = post.author || {};
-  
-  console.log('Rendering post:', {
-    id: post.id,
-    content: post.content,
-    author: post.author,
-    created_at: post.created_at
-  });
-
   const formattedDate = post.created_at 
     ? formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
     : '';
@@ -68,14 +95,8 @@ function Post({ post }) {
             </Typography>
           )
         }
-        sx={{ 
-          bgcolor: 'primary.light',
-          color: 'white',
-          '& .MuiCardHeader-subheader': { 
-            color: 'rgba(255,255,255,0.7)' 
-          }
-        }}
       />
+      
       {post.image_url && (
         <CardMedia
           component="img"
@@ -88,6 +109,7 @@ function Post({ post }) {
           }}
         />
       )}
+      
       <CardContent>
         <Typography 
           variant="body1" 
@@ -99,6 +121,29 @@ function Post({ post }) {
           {post.content || ''}
         </Typography>
       </CardContent>
+
+      <CardActions disableSpacing>
+        <IconButton 
+          onClick={handleLike}
+          disabled={!user}
+          sx={{
+            color: likedPosts.includes(post.id) ? 'error.main' : 'action.active',
+            '&:hover': {
+              color: 'error.main',
+            },
+            transition: 'all 0.2s',
+          }}
+        >
+          <FavoriteBorderIcon />
+        </IconButton>
+        <Typography 
+          variant="body2" 
+          color="text.secondary"
+          sx={{ ml: 1 }}
+        >
+          {likeCount} {likeCount === 1 ? 'like' : 'likes'}
+        </Typography>
+      </CardActions>
     </Card>
   );
 }
